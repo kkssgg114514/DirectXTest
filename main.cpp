@@ -41,7 +41,7 @@ void LoadPipeline()
 #if defined(_DEBUG)
 	{
 		ComPtr<ID3D12Debug> debugController;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))));
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
 		}
@@ -234,13 +234,35 @@ void WaitForPreviousFrame()
 //渲染方法
 void OnRender()
 {
+	//提交命令列表，按照输入的命令进行渲染
+	PopulateCommandList();
 
+	//转存到另一个数组中
+	ID3D12CommandList* ppCommandLists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	ThrowIfFailed(swapChain->Present(1, 0));
+
+	//等待两个芯片同步
+	WaitForPreviousFrame();
+}
+
+//清理
+void onDestory()
+{
+	WaitForPreviousFrame();
+
+	CloseHandle(fenceEvent);
 }
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
 {
 	switch (message)
 	{
+	case WM_PAINT:
+		//在调用绘制时渲染
+		OnRender();
+		return 0;
 
 	case WM_DESTROY:
 		PostQuitMessage(0);//返回信息
@@ -275,6 +297,10 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		hInstance,
 		nullptr);
 
+	//加入初始化DirectX的代码
+	LoadPipeline();
+	LoadAsset();
+
 	ShowWindow(hwnd, SW_SHOW);
 
 
@@ -287,7 +313,8 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			DispatchMessage(&msg);
 		}
 	}
-
+	//回收资源
+	onDestory();
 
 	return 0;
 }

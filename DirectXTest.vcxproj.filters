@@ -16,10 +16,22 @@
     <Filter Include="头文件\DXUtils">
       <UniqueIdentifier>{3b461342-2c8d-4ef3-a3f0-188d8fd8dfff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\DXUtils">
+      <UniqueIdentifier>{8f1d634d-0ef6-49bf-9cb1-aacb7b5bef82}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dutil.cpp">
+      <Filter>源文件\DXUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>源文件\DXUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader.cpp">
+      <Filter>源文件\DXUtils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -27,6 +39,12 @@
       <Filter>头文件\DXUtils</Filter>
     </ClInclude>
     <ClInclude Include="d3dutil.h">
+      <Filter>头文件\DXUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>头文件\DXUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="DDSTextureLoader.h">
       <Filter>头文件\DXUtils</Filter>
     </ClInclude>
   </ItemGroup>
