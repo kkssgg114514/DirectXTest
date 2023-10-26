@@ -1,9 +1,10 @@
-//#include <Windows.h>
-//#include <d3d12.h>
-//#include <dxgi1_4.h>
-//#include <wrl.h>
-#include "d3dutil.h"//已经包含在里面
+#include <Windows.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include <wrl.h>
+//#include "d3dutil.h"//已经包含在里面
 #include <iostream>
+#include "d3dx12.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -32,6 +33,30 @@ UINT frameIndex;
 HANDLE fenceEvent;
 ComPtr<ID3D12Fence> fence;
 UINT64 fenceValue;
+
+std::string HrToString(HRESULT hr)
+{
+	char s_str[64] = {};
+	sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
+	return std::string(s_str);
+}
+
+class HrException : public std::runtime_error
+{
+public:
+	HrException(HRESULT hr) : std::runtime_error(HrToString(hr)), m_hr(hr) {}
+	HRESULT Error() const { return m_hr; }
+private:
+	const HRESULT m_hr;
+};
+
+void ThrowIfFailed(HRESULT hr)
+{
+	if (FAILED(hr))
+	{
+		throw HrException(hr);
+	}
+}
 
 IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel);
 

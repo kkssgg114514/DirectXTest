@@ -24,27 +24,9 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="d3dutil.cpp">
-      <Filter>源文件\DXUtils</Filter>
-    </ClCompile>
-    <ClCompile Include="MathHelper.cpp">
-      <Filter>源文件\DXUtils</Filter>
-    </ClCompile>
-    <ClCompile Include="DDSTextureLoader.cpp">
-      <Filter>源文件\DXUtils</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h">
-      <Filter>头文件\DXUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="d3dutil.h">
-      <Filter>头文件\DXUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="MathHelper.h">
-      <Filter>头文件\DXUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="DDSTextureLoader.h">
       <Filter>头文件\DXUtils</Filter>
     </ClInclude>
   </ItemGroup>
