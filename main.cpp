@@ -130,7 +130,18 @@ void LoadPipeline()
 	rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建资源视图
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	//获取交换链缓存区的资源，然后为此创建视图
+	for (UINT n = 0; n < FrameCount; n++)
+	{
+		ThrowIfFailed(swapChain->GetBuffer(n, IID_PPV_ARGS(&renderTargets[n])));
+		device->CreateRenderTargetView(renderTargets[n].Get(), nullptr, rtvHandle);
+		rtvHandle.Offset(1, rtvDescriptorSize);
+	}
 
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator)));
 }
 
 IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel)
