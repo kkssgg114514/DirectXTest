@@ -141,6 +141,7 @@ void LoadPipeline()
 	}
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建命令分配器存放命令
 	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator)));
 }
 
@@ -171,6 +172,26 @@ IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D
 	}
 	//返回一个显示适配器
 	return adapter;
+}
+
+//加载资源
+void LoadAsset()
+{
+	//创建命令列表
+	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+
+	//关闭命令列表
+	ThrowIfFailed(commandList->Close());
+
+	//创建同步围栏点
+	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+	fenceValue = 1;
+	
+	fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (fenceEvent == nullptr)
+	{
+		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+	}
 }
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
