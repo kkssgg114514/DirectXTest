@@ -1,4 +1,10 @@
-#include<Windows.h>
+#include <Windows.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include <wrl.h>
+
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//»Øµ÷º¯Êý
 {
