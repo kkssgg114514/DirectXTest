@@ -1,4 +1,4 @@
-#include <Windows.h>
+//#include <Windows.h>
 //#include <d3d12.h>
 //#include <dxgi1_4.h>
 //#include <wrl.h>
@@ -193,6 +193,29 @@ void LoadAsset()
 		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 	}
 }
+
+//添加命令
+void PopulateCommandList()
+{
+	ThrowIfFailed(commandAllocator->Reset());
+	ThrowIfFailed(commandList->Reset(commandAllocator.Get(), pipelineState.Get()));
+
+	D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	commandList->ResourceBarrier(1, &resBarrier);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+
+	//以什么颜色填充后台缓冲区
+	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+	resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	commandList->ResourceBarrier(1, &resBarrier);
+
+	ThrowIfFailed(commandList->Close());
+}
+
+
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
 {
