@@ -6,7 +6,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 	{
 
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		PostQuitMessage(0);//∑µªÿ–≈œ¢
 		return 0;
 	}
 
