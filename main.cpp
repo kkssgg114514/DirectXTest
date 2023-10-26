@@ -16,17 +16,18 @@ UINT height = 600;
 HWND hwnd;
 
 //管线对象
-ComPtr<IDXGISwapChain3> swapChain;
-ComPtr<ID3D12Device> device;
-ComPtr<ID3D12Resource> renderTargets[FrameCount];
-ComPtr<ID3D12CommandAllocator> commandAllocator;
-ComPtr<ID3D12CommandQueue> commandQueue;
-ComPtr<ID3D12DescriptorHeap> rtvHeap;
-ComPtr<ID3D12PipelineState> pipelineState;
-ComPtr<ID3D12GraphicsCommandList> commandList;
+ComPtr<IDXGISwapChain3> swapChain;//交换链
+ComPtr<ID3D12Device> device;//3d设备
+ComPtr<ID3D12Resource> renderTargets[FrameCount];//渲染目标
+ComPtr<ID3D12CommandAllocator> commandAllocator;//命令管理器
+ComPtr<ID3D12CommandQueue> commandQueue;//命令队列
+ComPtr<ID3D12DescriptorHeap> rtvHeap;//渲染目标视图堆（）
+ComPtr<ID3D12PipelineState> pipelineState;//管线状态对象
+ComPtr<ID3D12GraphicsCommandList> commandList;//命令列表
 UINT rtvDescriptorSize;
 
 // 同步对象
+//都是围栏点
 UINT frameIndex;
 HANDLE fenceEvent;
 ComPtr<ID3D12Fence> fence;
@@ -47,10 +48,12 @@ void LoadPipeline()
 	}
 #endif
 
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//枚举显示适配器
 	ComPtr<IDXGIFactory4> mDxgifactory;
 	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(mDxgifactory.GetAddressOf())));
 
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//利用开头声明的函数
 	//版本从高到低，优先进行高版本适配
 	D3D_FEATURE_LEVEL featureLevels[] =
@@ -73,11 +76,61 @@ void LoadPipeline()
 		}
 	}
 
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//创建设备接口，用来表示设备
 	if (adapter != nullptr)
 	{
 		D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(device.GetAddressOf()));
 	}
+
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建命令队列
+	//先描述队列的各个属性，然后创建
+	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	//创建
+	ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建交换链描述
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.BufferCount = FrameCount;
+	swapChainDesc.Width = width;
+	swapChainDesc.Height = height;
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.SampleDesc.Count = 1;
+
+	//创建交换链
+	ComPtr<IDXGISwapChain1> swapChain1;
+	ThrowIfFailed(mDxgifactory->CreateSwapChainForHwnd(
+		commandQueue.Get(),
+		hwnd,
+		&swapChainDesc,
+		nullptr,
+		nullptr,
+		&swapChain1
+	));
+
+	ThrowIfFailed(swapChain1.As(&swapChain));
+	frameIndex = swapChain->GetCurrentBackBufferIndex();
+
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建描述符堆描述
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = FrameCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	//创建描述符堆
+	ThrowIfFailed(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+	rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
+
 }
 
 IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel)
