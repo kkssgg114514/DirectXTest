@@ -215,7 +215,27 @@ void PopulateCommandList()
 	ThrowIfFailed(commandList->Close());
 }
 
+//同步CPU和GPU
+void WaitForPreviousFrame()
+{
+	const UINT64 tempFenceValue = fenceValue;
+	ThrowIfFailed(commandQueue->Signal(fence.Get(), tempFenceValue));
+	fenceValue++;
 
+	if (fence->GetCompletedValue() < tempFenceValue)
+	{
+		ThrowIfFailed(fence->SetEventOnCompletion(tempFenceValue, fenceEvent));
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	frameIndex = swapChain->GetCurrentBackBufferIndex();
+}
+
+//渲染方法
+void OnRender()
+{
+
+}
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
 {
