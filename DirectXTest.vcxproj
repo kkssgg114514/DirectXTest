@@ -22,6 +22,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="d3dutil.h" />
     <ClInclude Include="d3dx12.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

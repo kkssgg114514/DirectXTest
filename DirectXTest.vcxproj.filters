@@ -26,5 +26,8 @@
     <ClInclude Include="d3dx12.h">
       <Filter>头文件\DXUtils</Filter>
     </ClInclude>
+    <ClInclude Include="d3dutil.h">
+      <Filter>头文件\DXUtils</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

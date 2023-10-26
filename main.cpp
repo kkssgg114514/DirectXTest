@@ -1,10 +1,27 @@
 #include <Windows.h>
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <wrl.h>
+//#include <d3d12.h>
+//#include <dxgi1_4.h>
+//#include <wrl.h>
+#include "d3dutil.h"//已经包含在里面
+#include <iostream>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+
+using namespace Microsoft::WRL;//重要的包含，命名空间
+
+void LoadPipeline()
+{//调试层，仅在debug时运行
+#if defined(_DEBUG)
+	{
+		ComPtr<ID3D12Debug> debugController;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))));
+		{
+			debugController->EnableDebugLayer();
+		}
+	}
+#endif
+}
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
 {
