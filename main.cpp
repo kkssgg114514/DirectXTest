@@ -34,6 +34,11 @@ HANDLE fenceEvent;
 ComPtr<ID3D12Fence> fence;
 UINT64 fenceValue;
 
+//添加颜色标记（）
+float color[4];
+bool isRAdd = true;
+bool isGAdd = true;
+bool isBAdd = true;
 
 std::string HrToString(HRESULT hr)
 {
@@ -234,7 +239,7 @@ void PopulateCommandList()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
 
 	//以什么颜色填充后台缓冲区
-	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+	const float clearColor[] = { color[0], color[1], color[2], color[3] };
 	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
 	resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -257,6 +262,46 @@ void WaitForPreviousFrame()
 	}
 
 	frameIndex = swapChain->GetCurrentBackBufferIndex();
+}
+
+//更新缓冲区中的颜色
+void OnUpdate()
+{
+	//颜色值小于1了就开始添加（RGB）
+	if (color[0] <= 1.0f && isRAdd)
+	{
+		color[0] += 0.001f;
+		isRAdd = true;
+	}
+	else
+	{
+		color[0] -= 0.002f;
+		color[0] <= 0 ? isRAdd = true : isRAdd = false;
+	}
+	if (color[1] <= 1.0f && isGAdd)
+	{
+		color[1] += 0.002f;
+		isGAdd = true;
+	}
+	else
+	{
+		color[1] -= 0.001f;
+		color[1] <= 0 ? isGAdd = true : isGAdd = false;
+
+	}
+
+	if (color[2] <= 1.0f && isBAdd)
+	{
+		color[2] += 0.001f;
+		isBAdd = true;
+	}
+	else
+	{
+		color[2] -= 0.001f;
+		color[2] <= 0 ? isBAdd = true : isBAdd = false;
+
+	}
+	color[3] = 1.0f;
 }
 
 //渲染方法
@@ -289,7 +334,9 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 	switch (message)
 	{
 	case WM_PAINT:
-		//在调用绘制时渲染
+		//在调用绘制时
+		//在渲染前更新参数，渲染时根据更新的函数里的数据渲染
+		OnUpdate();
 		OnRender();
 		return 0;
 
@@ -313,7 +360,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 	RegisterClassEx(&windowClass);
 
-	hwnd = CreateWindow(
+	hwnd = CreateWindow(//比上一个版本的代码更改窗口句柄为全局变量，因此不能重复定义##，重复定义会导致ThrowIfFailed函数无法得到正确的返回值
 		windowClass.lpszClassName,
 		L"Render",
 		WS_OVERLAPPEDWINDOW,
