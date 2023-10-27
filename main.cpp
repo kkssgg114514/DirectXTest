@@ -1,9 +1,9 @@
-#include <Windows.h>
+#include<Windows.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <wrl.h>
-//#include "d3dutil.h"//已经包含在里面
-#include <iostream>
+#include<iostream>
+
 #include "d3dx12.h"
 
 #pragma comment(lib, "d3d12.lib")
@@ -34,6 +34,7 @@ HANDLE fenceEvent;
 ComPtr<ID3D12Fence> fence;
 UINT64 fenceValue;
 
+
 std::string HrToString(HRESULT hr)
 {
 	char s_str[64] = {};
@@ -58,7 +59,34 @@ void ThrowIfFailed(HRESULT hr)
 	}
 }
 
-IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel);
+IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel)
+{
+	IDXGIAdapter1* adapter = nullptr;
+	//利用创建好的IDXGIFactory指针来枚举所有的显示设备
+	for (std::uint32_t adapterIndex = 0U; ; ++adapterIndex)
+	{
+		IDXGIAdapter1* currentAdapter = nullptr;
+		//如果未找到适配器，则停止搜索
+		if (DXGI_ERROR_NOT_FOUND == dxgiFactory->EnumAdapters1(adapterIndex, &currentAdapter))
+		{
+			break;
+		}
+
+		//利用指定的D3D版本创建设备（在程序中的对象），返回一个结果
+		const HRESULT hres = D3D12CreateDevice(currentAdapter, featureLevel, _uuidof(ID3D12Device), nullptr);
+		//利用返回而结果判断是否创建成功，如果版本匹配，则停止搜索
+		if (SUCCEEDED(hres))
+		{
+			adapter = currentAdapter;
+			break;
+		}
+
+		//每次循环释放开头创建的指针
+		currentAdapter->Release();
+	}
+	//返回一个显示适配器
+	return adapter;
+}
 
 void LoadPipeline()
 {
@@ -71,13 +99,12 @@ void LoadPipeline()
 			debugController->EnableDebugLayer();
 		}
 	}
-
-#endif
+#endif 
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//枚举显示适配器
-	ComPtr<IDXGIFactory4> mDxgifactory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(mDxgifactory.GetAddressOf())));
+	ComPtr<IDXGIFactory4> mDxgiFactory;
+	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(mDxgiFactory.GetAddressOf())));
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//利用开头声明的函数
@@ -94,7 +121,7 @@ void LoadPipeline()
 	//遍历上方的D3D_FEATURE_LEVEL类型数组，对于得到的适配器
 	for (std::uint32_t i = 0U; i < _countof(featureLevels); ++i)
 	{
-		adapter = GetSupportedAdapter(mDxgifactory, featureLevels[i]);
+		adapter = GetSupportedAdapter(mDxgiFactory, featureLevels[i]);
 		//adapter不为空表示成功匹配了版本，则跳出循环
 		if (adapter != nullptr)
 		{
@@ -132,7 +159,7 @@ void LoadPipeline()
 
 	//创建交换链
 	ComPtr<IDXGISwapChain1> swapChain1;
-	ThrowIfFailed(mDxgifactory->CreateSwapChainForHwnd(
+	ThrowIfFailed(mDxgiFactory->CreateSwapChainForHwnd(
 		commandQueue.Get(),
 		hwnd,
 		&swapChainDesc,
@@ -145,15 +172,17 @@ void LoadPipeline()
 	frameIndex = swapChain->GetCurrentBackBufferIndex();
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
-	//创建描述符堆描述
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = FrameCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	{
+		//创建描述符堆描述
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = FrameCount;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-	//创建描述符堆
-	ThrowIfFailed(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
-	rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		//创建描述符堆
+		ThrowIfFailed(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+		rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//创建资源视图
@@ -171,52 +200,25 @@ void LoadPipeline()
 	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator)));
 }
 
-IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel)
-{
-	IDXGIAdapter1* adapter = nullptr;
-	//利用创建好的IDXGIFactory指针来枚举所有的显示设备
-	for (std::uint32_t adapterIndex = 0U; ; ++adapterIndex)
-	{
-		IDXGIAdapter1* currentAdapter = nullptr;
-		//如果未找到适配器，则停止搜索
-		if (DXGI_ERROR_NOT_FOUND == dxgiFactory->EnumAdapters1(adapterIndex, &currentAdapter))
-		{
-			break;
-		}
-
-		//利用指定的D3D版本创建设备（在程序中的对象），返回一个结果
-		const HRESULT hres = D3D12CreateDevice(currentAdapter, featureLevel, __uuidof(ID3D12Device), nullptr);
-		//利用返回而结果判断是否创建成功，如果版本匹配，则停止搜索
-		if (SUCCEEDED(hres))
-		{
-			adapter = currentAdapter;
-			break;
-		}
-
-		//每次循环释放开头创建的指针
-		currentAdapter->Release();
-	}
-	//返回一个显示适配器
-	return adapter;
-}
-
 //加载资源
 void LoadAsset()
 {
 	//创建命令列表
 	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-
+	
 	//关闭命令列表
 	ThrowIfFailed(commandList->Close());
 
-	//创建同步围栏点
-	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-	fenceValue = 1;
-	
-	fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (fenceEvent == nullptr)
 	{
-		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+		//创建同步围栏点
+		ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+		fenceValue = 1;
+
+		fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (fenceEvent == nullptr)
+		{
+			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+		}
 	}
 }
 
@@ -274,14 +276,15 @@ void OnRender()
 }
 
 //清理
-void onDestory()
+void OnDestroy()
 {
 	WaitForPreviousFrame();
 
 	CloseHandle(fenceEvent);
 }
 
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)//回调函数
+
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
@@ -310,14 +313,14 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 	RegisterClassEx(&windowClass);
 
-	HWND hwnd = CreateWindow(
+	hwnd = CreateWindow(
 		windowClass.lpszClassName,
 		L"Render",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		800,
-		600,
+		width,
+		height,
 		nullptr,
 		nullptr,
 		hInstance,
@@ -329,7 +332,6 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 	ShowWindow(hwnd, SW_SHOW);
 
-
 	MSG msg = {};
 	while (msg.message != WM_QUIT)
 	{
@@ -340,7 +342,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		}
 	}
 	//回收资源
-	onDestory();
+	OnDestroy();
 
 	return 0;
 }
