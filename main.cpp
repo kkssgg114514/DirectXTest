@@ -45,7 +45,7 @@ ComPtr<ID3D12Fence> fence;
 UINT64 fenceValue;
 
 //添加颜色标记（）
-float color[4];
+float color[3];
 bool isRAdd = true;
 bool isGAdd = true;
 bool isBAdd = true;
@@ -230,16 +230,16 @@ void LoadAsset()
 	rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	//创建根签名
-	ComPtr<ID3D10Blob> signature;
-	ComPtr<ID3D10Blob> error;
+	ComPtr<ID3DBlob> signature;
+	ComPtr<ID3DBlob> error;
 
 	ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 	ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//编译着色器
-	ComPtr<ID3D10Blob> vertexShader;
-	ComPtr<ID3D10Blob> pixelShader;
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
 
 #if defined(_DEBUG)
 	//debug期间实现更好性能
