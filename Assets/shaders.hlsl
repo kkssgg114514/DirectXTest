@@ -1,3 +1,8 @@
+cbuffer SceneConstantBuffer : register(b0)
+{
+    float4 offset;
+}
+
 struct PSInput
 {
     float4 position : SV_POSITION;

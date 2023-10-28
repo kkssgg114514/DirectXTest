@@ -20,6 +20,11 @@ UINT width = 800;
 UINT height = 600;
 HWND hwnd;
 
+struct SceneConstantBuffer
+{
+	XMFLOAT4 offset;
+};
+
 //管线对象
 CD3DX12_VIEWPORT viewport(0.0f, 0.0f, width, height);
 CD3DX12_RECT scissorRect(0, 0, width, height);
@@ -31,6 +36,7 @@ ComPtr<ID3D12CommandQueue> commandQueue;//命令队列
 ComPtr<ID3D12RootSignature> rootSignature;//根签名
 ComPtr<ID3D12DescriptorHeap> rtvHeap;//渲染目标视图堆（）
 ComPtr<ID3D12DescriptorHeap> dsvHeap;//深度测试堆
+ComPtr<ID3D12DescriptorHeap> cbvHeap;//常量缓存堆
 ComPtr<ID3D12PipelineState> pipelineState;//管线状态对象
 ComPtr<ID3D12GraphicsCommandList> commandList;//命令列表
 UINT rtvDescriptorSize;
@@ -43,6 +49,10 @@ ComPtr<ID3D12Resource> indexBuffer;
 D3D12_INDEX_BUFFER_VIEW indexBufferView;
 //深度缓冲
 ComPtr<ID3D12Resource> depthStencilBuffer;
+//常量缓存
+ComPtr<ID3D12Resource> constantBuffer;
+SceneConstantBuffer constantBufferData;
+UINT8* pCbvDataBegin;
 
 // 同步对象
 //都是围栏点
@@ -86,6 +96,25 @@ void ThrowIfFailed(HRESULT hr)
 	{
 		throw HrException(hr);
 	}
+}
+
+//通过该方法可以使数据每256字节对齐
+template <typename T>
+constexpr UINT CalcConstantBufferByteSize()
+{
+	// Constant buffers must be a multiple of the minimum hardware
+	// allocation size (usually 256 bytes).  So round up to nearest
+	// multiple of 256.  We do this by adding 255 and then masking off
+	// the lower 2 bytes which store all bits < 256.
+	// Example: Suppose byteSize = 300.
+	// (300 + 255) & ~255
+	// 555 & ~255
+	// 0x022B & ~0x00ff
+	// 0x022B & 0xff00
+	// 0x0200
+	// 512
+	UINT byteSize = sizeof(T);
+	return (byteSize + 255) & ~255;
 }
 
 IDXGIAdapter1* GetSupportedAdapter(ComPtr<IDXGIFactory4>& dxgiFactory, const D3D_FEATURE_LEVEL featureLevel)
@@ -201,6 +230,7 @@ void LoadPipeline()
 	frameIndex = swapChain->GetCurrentBackBufferIndex();
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//任何堆存储都要先在描述符堆里面“注册”
 	{
 		//创建描述符堆描述
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -218,6 +248,13 @@ void LoadPipeline()
 		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		ThrowIfFailed(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
+
+		//创建常量缓存堆
+		D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+		cbvHeapDesc.NumDescriptors = 1;
+		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		ThrowIfFailed(device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
 	}
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
@@ -239,15 +276,36 @@ void LoadPipeline()
 //加载资源
 void LoadAsset()
 {
-	//创建根签名描述
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-	rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	//根签名，用描述符表存放常量缓存视图
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+	{
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+	}
+
+	CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+	//创建根签名描述，用上面初始化好的根签名表
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+	rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
 	//创建根签名
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
 
-	ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 	ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
@@ -407,6 +465,27 @@ void LoadAsset()
 	device->CreateDepthStencilView(depthStencilBuffer.Get(), &depthStencilDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
+	//创建常量缓存
+	const UINT constantBufferSize = CalcConstantBufferByteSize<SceneConstantBuffer>();
+	CD3DX12_RESOURCE_DESC constantResourceDes = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&constantResourceDes,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&constantBuffer)
+	));
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = constantBuffer->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = constantBufferSize;
+	device->CreateConstantBufferView(&cbvDesc, cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	ThrowIfFailed(constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pCbvDataBegin)));
+	memcpy(pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
+
+	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	{
 		//创建同步围栏点
 		ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
@@ -426,8 +505,14 @@ void PopulateCommandList()
 	ThrowIfFailed(commandAllocator->Reset());
 	ThrowIfFailed(commandList->Reset(commandAllocator.Get(), pipelineState.Get()));
 
+	//将常量缓存堆添加进命令列表
 	//设置根签名，视口，裁剪矩形
 	commandList->SetGraphicsRootSignature(rootSignature.Get());
+	ID3D12DescriptorHeap* ppHeaps[] = { cbvHeap.Get() };
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	commandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
 
@@ -476,7 +561,7 @@ void WaitForPreviousFrame()
 	frameIndex = swapChain->GetCurrentBackBufferIndex();
 }
 
-//更新缓冲区中的颜色
+//更新缓冲区中的颜色，更新常量缓存区里面的数据
 void OnUpdate()
 {
 	//颜色值小于1了就开始添加（RGB）
@@ -512,6 +597,17 @@ void OnUpdate()
 		color[2] -= 0.001f;
 		color[2] <= 0 ? isBAdd = true : isBAdd = false;
 	}
+
+	//让矩形运动
+	const float translationSpeed = 0.005f;
+	const float offsetBounds = 1.25f;
+
+	constantBufferData.offset.x += translationSpeed;
+	if (constantBufferData.offset.x > offsetBounds)
+	{
+		constantBufferData.offset.x = -offsetBounds;
+	}
+	memcpy(pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
 }
 
 //渲染方法
