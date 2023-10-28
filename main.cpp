@@ -256,7 +256,7 @@ void LoadAsset()
 	//创建管线状态对象，先填写描述
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 	};
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -286,7 +286,7 @@ void LoadAsset()
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
 	//创建命令列表
-	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState.Get(), IID_PPV_ARGS(&commandList)));
 
 	//关闭命令列表
 	ThrowIfFailed(commandList->Close());
@@ -423,9 +423,7 @@ void OnUpdate()
 	{
 		color[2] -= 0.001f;
 		color[2] <= 0 ? isBAdd = true : isBAdd = false;
-
 	}
-	color[3] = 1.0f;
 }
 
 //渲染方法
