@@ -736,6 +736,7 @@ void LoadAsset()
 	memcpy(pCbvDataBegin, &constantBufferData, sizeof(constantBufferData));
 
 	/*-----------------------------------------------------------------------------------------------------------------------------*/
+
 	//创建纹理资源
 	D3D12_RESOURCE_DESC textureDesc;
 	int imageBytesPerRow;
